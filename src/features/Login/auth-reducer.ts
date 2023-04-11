@@ -1,16 +1,15 @@
-import {Dispatch} from 'redux'
-import {SetAppErrorActionType, setAppStatusAC, SetAppStatusActionType} from '../../app/app-reducer'
-import {authAPI, LoginParamsType} from "../../api/todolist-api";
-import {handleAppError, handleNetworkError} from "../../utils/error-utils";
-import {AxiosError} from "axios";
+import {setAppErrorAC, SetAppErrorActionType, setAppStatusAC, SetAppStatusActionType} from '../../app/app-reducer'
+import {authAPI, CommonResponseType, LoginParamsType} from "../../api/todolist-api";
+import {AxiosError, AxiosResponse} from "axios";
 import {clearStateAC, ClearStateActionType} from "../TodolistsList/todolists-reducer";
+import {call, put} from 'redux-saga/effects';
 
 const initialState = {
     isLoggedIn: false
 }
-type InitialStateType = typeof initialState
+export type InitialStateType = typeof initialState
 
-export const authReducer = (state: InitialStateType = initialState, action: ActionsType): InitialStateType => {
+export const authReducer = (state: InitialStateType = initialState, action: AuthActionsType): InitialStateType => {
     switch (action.type) {
         case 'login/SET-IS-LOGGED-IN':
             return {...state, isLoggedIn: action.value}
@@ -21,43 +20,68 @@ export const authReducer = (state: InitialStateType = initialState, action: Acti
 // AC
 export const setIsLoggedInAC = (value: boolean) => ({type: 'login/SET-IS-LOGGED-IN', value} as const)
 
-// TC
-export const loginTC = (data: LoginParamsType) => (dispatch: Dispatch<ActionsType>) => {
-    dispatch(setAppStatusAC('loading'))
-    authAPI.login(data)
-        .then((res) => {
-            if (res.data.resultCode === 0) {
-                dispatch(setIsLoggedInAC(true))
-                dispatch(setAppStatusAC('succeeded'))
+// sagas
+
+export function* loginWorkerSaga(action: ReturnType<typeof login>) {
+    yield put(setAppStatusAC('loading'))
+    try {
+        const res: AxiosResponse<CommonResponseType> = yield call(authAPI.login, action.data)
+        if (res.data.resultCode === 0) {
+            yield put(setIsLoggedInAC(true))
+            yield put(setAppStatusAC('succeeded'))
+        } else {
+            if (res.data.messages.length) {
+                yield put(setAppErrorAC(res.data.messages[0]))
             } else {
-                handleAppError(dispatch, res.data)
+                yield put(setAppErrorAC('Some error occurred'))
             }
-        })
-        .catch((error: AxiosError) => {
-            handleNetworkError(dispatch, error.message)
-        })
+            yield put(setAppStatusAC('failed'))
+        }
+    } catch (err) {
+        const error = err as Error | AxiosError
+        yield put(setAppErrorAC(error.message))
+        yield put(setAppStatusAC('failed'))
+    }
 }
 
-export const logoutTC = () => (dispatch: Dispatch<ActionsType>) => {
-    dispatch(setAppStatusAC('loading'))
-    authAPI.logout()
-        .then((res) => {
-            if (res.data.resultCode === 0) {
-                dispatch(setIsLoggedInAC(false))
-                dispatch(clearStateAC())
-                dispatch(setAppStatusAC('succeeded'))
+export function* logoutWorkerSaga() {
+    yield put(setAppStatusAC('loading'))
+    try {
+        const res: AxiosResponse<CommonResponseType> = yield call(authAPI.logout)
+        if (res.data.resultCode === 0) {
+            yield put(setIsLoggedInAC(false))
+            yield put(clearStateAC())
+            yield put(setAppStatusAC('succeeded'))
+        } else {
+            if (res.data.messages.length) {
+                yield put(setAppErrorAC(res.data.messages[0]))
             } else {
-                handleAppError(dispatch, res.data)
+                yield put(setAppErrorAC('Some error occurred'))
             }
-        })
-        .catch((error: AxiosError) => {
-            handleNetworkError(dispatch, error.message)
-        })
+            yield put(setAppStatusAC('failed'))
+        }
+    } catch (err) {
+        const error = err as Error | AxiosError
+        yield put(setAppErrorAC(error.message))
+        yield put(setAppStatusAC('failed'))
+    }
 }
+
+export const login = (data: LoginParamsType) => ({type: 'AUTH/LOGIN', data} as const)
+export const logout = () => ({type: 'AUTH/LOGOUT'} as const)
 
 // types
 type SetIsLoggedInActionType = ReturnType<typeof setIsLoggedInAC>
-type ActionsType = SetIsLoggedInActionType | SetAppStatusActionType | SetAppErrorActionType | ClearStateActionType
+type LoginType = ReturnType<typeof login>
+type LogoutType = ReturnType<typeof logout>
+
+export type AuthActionsType =
+    | SetIsLoggedInActionType
+    | SetAppStatusActionType
+    | SetAppErrorActionType
+    | ClearStateActionType
+    | LoginType
+    | LogoutType
 
 
 

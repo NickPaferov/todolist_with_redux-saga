@@ -8,9 +8,10 @@ import FormLabel from '@material-ui/core/FormLabel'
 import Grid from '@material-ui/core/Grid'
 import TextField from '@material-ui/core/TextField'
 import {useFormik} from "formik";
-import {loginTC} from "./auth-reducer";
-import {useAppDispatch, useAppSelector} from "../../app/store";
+import {login} from "./auth-reducer";
+import {useAppSelector} from "../../app/store";
 import {Navigate} from 'react-router-dom'
+import {useDispatch} from 'react-redux'
 
 type FormikErrorType = {
     email?: string
@@ -20,7 +21,7 @@ type FormikErrorType = {
 
 export const Login = () => {
 
-    const dispatch = useAppDispatch()
+    const dispatch = useDispatch()
     const isLoggedIn = useAppSelector(state => state.auth.isLoggedIn)
 
     const formik = useFormik({
@@ -44,8 +45,7 @@ export const Login = () => {
             return errors;
         },
         onSubmit: values => {
-            dispatch(loginTC(values));
-            formik.resetForm();
+            dispatch(login(values));
         },
     })
 

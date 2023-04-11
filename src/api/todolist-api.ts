@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, {AxiosResponse} from 'axios'
 
 const instance = axios.create({
     baseURL: 'https://social-network.samuraijs.com/api/1.1/',
@@ -10,40 +10,40 @@ const instance = axios.create({
 
 // api
 export const todolistAPI = {
-    getTodolists() {
+    getTodolists(): Promise<AxiosResponse<Array<TodolistType>>> {
         return instance.get<Array<TodolistType>>('todo-lists')
     },
-    createTodolist(title: string) {
+    createTodolist(title: string): Promise<AxiosResponse<CommonResponseType<{ item: TodolistType }>>> {
         return instance.post<CommonResponseType<{ item: TodolistType }>>('todo-lists', {title})
     },
-    deleteTodolist(todolistId: string) {
+    deleteTodolist(todolistId: string): Promise<AxiosResponse<CommonResponseType>> {
         return instance.delete<CommonResponseType>(`todo-lists/${todolistId}`)
     },
-    updateTodolistTitle(todolistId: string, title: string) {
+    updateTodolistTitle(todolistId: string, title: string): Promise<AxiosResponse<CommonResponseType>> {
         return instance.put<CommonResponseType>(`todo-lists/${todolistId}`, {title})
     },
-    getTasks(todolistId: string) {
+    getTasks(todolistId: string): Promise<AxiosResponse<GetTasksResponse>> {
         return instance.get<GetTasksResponse>(`todo-lists/${todolistId}/tasks`)
     },
-    createTask(todolistId: string, taskTitle: string) {
+    createTask(todolistId: string, taskTitle: string): Promise<AxiosResponse<CommonResponseType<{ item: TaskType }>>> {
         return instance.post<CommonResponseType<{ item: TaskType }>>(`todo-lists/${todolistId}/tasks`, {title: taskTitle})
     },
-    deleteTask(todolistId: string, taskId: string) {
+    deleteTask(todolistId: string, taskId: string): Promise<AxiosResponse<CommonResponseType>> {
         return instance.delete<CommonResponseType>(`todo-lists/${todolistId}/tasks/${taskId}`)
     },
-    updateTask(todolistId: string, taskId: string, model: UpdateTaskModelType) {
+    updateTask(todolistId: string, taskId: string, model: UpdateTaskModelType): Promise<AxiosResponse<CommonResponseType<{ item: TaskType }>>> {
         return instance.put<CommonResponseType<{ item: TaskType }>>(`todo-lists/${todolistId}/tasks/${taskId}`, model)
     }
 }
 
 export const authAPI = {
-    login(data: LoginParamsType) {
+    login(data: LoginParamsType): Promise<AxiosResponse<CommonResponseType>> {
         return instance.post<CommonResponseType<{ userId?: number }>>(`auth/login`, data)
     },
-    me() {
+    me(): Promise<AxiosResponse<CommonResponseType<MeResponseType>>> {
         return instance.get<CommonResponseType<MeResponseType>>(`auth/me`)
     },
-    logout() {
+    logout(): Promise<AxiosResponse<CommonResponseType>> {
         return instance.delete<CommonResponseType<{ userId?: number }>>(`auth/login`)
     }
 }
@@ -80,7 +80,6 @@ export enum TaskStatuses {
     New = 0,
     inProgress = 1,
     Completed = 2,
-    Draft = 3
 }
 
 export enum TaskPriorities {
@@ -105,7 +104,7 @@ export type TaskType = {
     addedDate: string
 }
 
-type GetTasksResponse = {
+export type GetTasksResponse = {
     error: string | null
     totalCount: number
     items: Array<TaskType>

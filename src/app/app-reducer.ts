@@ -1,8 +1,7 @@
-import {Dispatch} from "redux"
-import {authAPI} from "../api/todolist-api"
+import {authAPI, CommonResponseType} from "../api/todolist-api"
 import {setIsLoggedInAC} from "../features/Login/auth-reducer";
-import {handleAppError, handleNetworkError} from "../utils/error-utils";
-import {AxiosError} from "axios";
+import {AxiosError, AxiosResponse} from "axios";
+import {call, put} from "redux-saga/effects";
 
 const initialState = {
     status: 'loading' as RequestStatusType,
@@ -29,31 +28,46 @@ export const setAppErrorAC = (error: null | string) => ({type: 'APP/SET-ERROR', 
 export const setAppIsInitializedAC = (isInitialized: boolean) =>
     ({type: 'APP/SET-IS-INITIALIZED', isInitialized} as const)
 
-// TC
 
-export const initializeAppTC = () => (dispatch: Dispatch) => {
-    dispatch(setAppStatusAC('loading'))
-    authAPI.me()
-        .then(res => {
-            if (res.data.resultCode === 0) {
-                dispatch(setIsLoggedInAC(true))
-                dispatch(setAppStatusAC('succeeded'))
+// saga
+
+export function* initializeAppWorkerSaga() {
+    yield put(setAppStatusAC('loading'))
+    try {
+        const res: AxiosResponse<CommonResponseType> = yield call(authAPI.me)
+        if (res.data.resultCode === 0) {
+            yield put(setIsLoggedInAC(true))
+            yield put(setAppStatusAC('succeeded'))
+        } else {
+            if (res.data.messages.length) {
+                yield put(setAppErrorAC(res.data.messages[0]))
             } else {
-                handleAppError(dispatch, res.data)
+                yield put(setAppErrorAC('Some error occurred'))
             }
-        })
-        .catch((error: AxiosError) => {
-            handleNetworkError(dispatch, error.message)
-        })
-        .finally(() => {
-            dispatch(setAppIsInitializedAC(true))
-        })
+            yield put(setAppStatusAC('failed'))
+        }
+    } catch (err) {
+        const error = err as Error | AxiosError
+        yield put(setAppErrorAC(error.message))
+        yield put(setAppStatusAC('failed'))
+    } finally {
+        yield put(setAppIsInitializedAC(true))
+    }
 }
 
+export const initializeApp = () => ({type: 'APP/INITIALIZE-APP'} as const)
+
+// types
 export type RequestStatusType = 'idle' | 'loading' | 'succeeded' | 'failed'
 export type InitialStateType = typeof initialState
 
 export type SetAppStatusActionType = ReturnType<typeof setAppStatusAC>
 export type SetAppErrorActionType = ReturnType<typeof setAppErrorAC>
 type SetAppIsInitializedActionType = ReturnType<typeof setAppIsInitializedAC>
-export type AppActionsType = SetAppStatusActionType | SetAppErrorActionType | SetAppIsInitializedActionType
+type InitializeAppType = ReturnType<typeof initializeApp>
+
+export type AppActionsType =
+    | SetAppStatusActionType
+    | SetAppErrorActionType
+    | SetAppIsInitializedActionType
+    | InitializeAppType

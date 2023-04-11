@@ -1,10 +1,25 @@
 import {applyMiddleware, combineReducers, legacy_createStore as createStore} from "redux";
-import thunk, {ThunkDispatch} from "redux-thunk";
-import {TasksActionsType, tasksReducer} from "../features/TodolistsList/tasks-reducer";
-import {TodolistsActionsType, todolistsReducer} from "../features/TodolistsList/todolists-reducer";
-import {TypedUseSelectorHook, useDispatch, useSelector} from "react-redux";
-import {appReducer} from "./app-reducer";
-import {authReducer} from "../features/Login/auth-reducer";
+import {
+    addTaskWorkerSaga,
+    fetchTasksWorkerSaga,
+    removeTaskWorkerSaga,
+    TasksActionsType,
+    tasksReducer,
+    updateTaskWorkerSaga
+} from "../features/TodolistsList/tasks-reducer";
+import {
+    addTodolistWorkerSaga,
+    changeTodoListTitleWorkerSaga,
+    fetchTodolistsWorkerSaga,
+    removeTodolistWorkerSaga,
+    TodolistsActionsType,
+    todolistsReducer
+} from "../features/TodolistsList/todolists-reducer";
+import {TypedUseSelectorHook, useSelector} from "react-redux";
+import {AppActionsType, appReducer, initializeAppWorkerSaga} from "./app-reducer";
+import {AuthActionsType, authReducer, loginWorkerSaga, logoutWorkerSaga} from "../features/Login/auth-reducer";
+import createSagaMiddleware from "redux-saga";
+import {takeEvery} from "redux-saga/effects";
 
 // объединяя reducer-ы с помощью combineReducers,
 // мы задаём структуру нашего единственного объекта-состояния
@@ -15,28 +30,37 @@ const rootReducer = combineReducers({
     auth: authReducer
 })
 
-// непосредственно создаём store
-export const store = createStore(rootReducer, applyMiddleware(thunk))
+// создаём sagaMiddleware
+const sagaMiddleware = createSagaMiddleware()
 
-/*store.subscribe(()=>{
-    const state = store.getState()
-    console.log(state)
-})*/
+// непосредственно создаём store
+export const store = createStore(rootReducer, applyMiddleware(sagaMiddleware))
+
+//запускаем saga
+sagaMiddleware.run(rootWatcher)
+
+function* rootWatcher() {
+    yield takeEvery('APP/INITIALIZE-APP', initializeAppWorkerSaga)
+    yield takeEvery('AUTH/LOGIN', loginWorkerSaga)
+    yield takeEvery('AUTH/LOGOUT', logoutWorkerSaga)
+    yield takeEvery('TODOLISTS/FETCH-TODOLISTS', fetchTodolistsWorkerSaga)
+    yield takeEvery('TODOLISTS/CREATE-TODOLIST', addTodolistWorkerSaga)
+    yield takeEvery('TODOLISTS/DELETE-TODOLIST', removeTodolistWorkerSaga)
+    yield takeEvery('TODOLISTS/RENAME-TODOLIST', changeTodoListTitleWorkerSaga)
+    yield takeEvery('TASKS/FETCH-TASKS', fetchTasksWorkerSaga)
+    yield takeEvery('TASKS/CREATE-TASK', addTaskWorkerSaga)
+    yield takeEvery('TASKS/DELETE-TASK', removeTaskWorkerSaga)
+    yield takeEvery('TASKS/UPDATE-TASK', updateTaskWorkerSaga)
+}
 
 // определить автоматически тип всего объекта состояния
 export type AppRootStateType = ReturnType<typeof rootReducer>
 // export type AppRootStateType = ReturnType<typeof store.getState>
 
-type AppActionsType = TasksActionsType | TodolistsActionsType
-export type AppDispatch = ThunkDispatch<AppRootStateType, unknown, AppActionsType>
-// export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, AppRootStateType, unknown, AppActionsType>
+export type AppRootActionsType = AppActionsType | AuthActionsType | TasksActionsType | TodolistsActionsType
 
-// hooks
-export const useAppDispatch = () => useDispatch<AppDispatch>()
+// hook
 export const useAppSelector: TypedUseSelectorHook<AppRootStateType> = useSelector
-
-// type DispatchType = ThunkDispatch<AppRootStateType, unknown, AnyAction>
-// export const useAppDispatch = () => useDispatch<DispatchType>()
 
 // а это, чтобы можно было в консоли браузера обращаться к store в любой момент
 // @ts-ignore

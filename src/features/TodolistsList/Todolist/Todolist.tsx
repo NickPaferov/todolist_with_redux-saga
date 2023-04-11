@@ -6,9 +6,10 @@ import ButtonsBlock from "../../../components/ButtonsBlock/ButtonsBlock";
 import {List} from '@material-ui/core';
 import {TaskStatuses} from '../../../api/todolist-api';
 import {FilterValuesType} from "../todolists-reducer";
-import {fetchTasksTC, TaskDomainType} from "../tasks-reducer";
-import {useAppDispatch, useAppSelector} from "../../../app/store";
+import {fetchTasks, TaskDomainType} from "../tasks-reducer";
+import {useAppSelector} from "../../../app/store";
 import {RequestStatusType} from "../../../app/app-reducer";
+import {useDispatch} from "react-redux";
 
 type TodoListPropsType = {
     todoListID: string
@@ -26,19 +27,18 @@ type TodoListPropsType = {
     demo?: boolean
 }
 
-const TodoList = React.memo(({demo = false ,...props}: TodoListPropsType) => {
-
+const TodoList = React.memo(({demo = false, ...props}: TodoListPropsType) => {
     console.log("Todolist")
-    const isLoggedIn = useAppSelector(state => state.auth.isLoggedIn)
 
-    const dispatch = useAppDispatch()
+    const dispatch = useDispatch()
+    const isLoggedIn = useAppSelector(state => state.auth.isLoggedIn)
 
     useEffect(() => {
         if (demo || !isLoggedIn) {
             return;
         }
-        dispatch(fetchTasksTC(props.todoListID))
-    }, [])
+        dispatch(fetchTasks(props.todoListID))
+    }, [dispatch, demo, isLoggedIn, props.todoListID])
 
     let tasksForRender = props.tasks
     if (props.filter === "active") {

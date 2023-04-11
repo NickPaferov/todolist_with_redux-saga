@@ -1,8 +1,7 @@
-import {todolistAPI, TodolistType} from '../../api/todolist-api';
-import {Dispatch} from "redux";
-import {AppActionsType, RequestStatusType, setAppStatusAC} from "../../app/app-reducer";
-import {AxiosError} from "axios";
-import {handleAppError, handleNetworkError} from "../../utils/error-utils";
+import {CommonResponseType, todolistAPI, TodolistType} from '../../api/todolist-api';
+import {AppActionsType, RequestStatusType, setAppErrorAC, setAppStatusAC} from "../../app/app-reducer";
+import {AxiosError, AxiosResponse} from "axios";
+import {call, put} from 'redux-saga/effects';
 
 const initialState: Array<TodolistDomainType> = []
 
@@ -43,65 +42,97 @@ export const changeTodolistEntityStatusAC = (todolistId: string, entityStatus: R
     ({type: 'CHANGE-TODOLIST-ENTITY-STATUS', id: todolistId, entityStatus: entityStatus} as const)
 export const clearStateAC = () => ({type: 'CLEAR-STATE'} as const)
 
-// TC
-export const fetchTodolistsTC = () => (dispatch: Dispatch<TodolistsActionsType>) => {
-    dispatch(setAppStatusAC('loading'))
-    todolistAPI.getTodolists()
-        .then((res) => {
-            dispatch(setTodolistsAC(res.data))
-            dispatch(setAppStatusAC('succeeded'))
-        })
-        .catch((error: AxiosError) => {
-            handleNetworkError(dispatch, error.message)
-        })
+// sagas
+
+export function* fetchTodolistsWorkerSaga() {
+    yield put(setAppStatusAC('loading'))
+    try {
+        const res: AxiosResponse<Array<TodolistType>> = yield call(todolistAPI.getTodolists)
+        yield put(setTodolistsAC(res.data))
+        yield put(setAppStatusAC('succeeded'))
+    } catch (err) {
+        const error = err as Error | AxiosError
+        yield put(setAppErrorAC(error.message))
+        yield put(setAppStatusAC('failed'))
+    }
 }
-export const removeTodolistTC = (todolistId: string) => (dispatch: Dispatch<TodolistsActionsType>) => {
-    dispatch(setAppStatusAC('loading'))
-    dispatch(changeTodolistEntityStatusAC(todolistId, 'loading'))
-    todolistAPI.deleteTodolist(todolistId)
-        .then((res) => {
-            if (res.data.resultCode === 0) {
-                dispatch(removeTodolistAC(todolistId))
-                dispatch(setAppStatusAC('succeeded'))
+
+export function* addTodolistWorkerSaga(action: ReturnType<typeof createTodolist>) {
+    yield put(setAppStatusAC('loading'))
+    try {
+        const res: AxiosResponse<CommonResponseType<{ item: TodolistType }>> = yield call(todolistAPI.createTodolist, action.title)
+        if (res.data.resultCode === 0) {
+            yield put(addTodolistAC(res.data.data.item))
+            yield put(setAppStatusAC('succeeded'))
+        } else {
+            if (res.data.messages.length) {
+                yield put(setAppErrorAC(res.data.messages[0]))
             } else {
-                handleAppError(dispatch, res.data)
-                dispatch(changeTodolistEntityStatusAC(todolistId, 'failed'))
+                yield put(setAppErrorAC('Some error occurred'))
             }
-        })
-        .catch((error: AxiosError) => {
-            handleNetworkError(dispatch, error.message)
-        })
+            yield put(setAppStatusAC('failed'))
+        }
+    } catch (err) {
+        const error = err as Error | AxiosError
+        yield put(setAppErrorAC(error.message))
+        yield put(setAppStatusAC('failed'))
+    }
 }
-export const addTodolistTC = (title: string) => (dispatch: Dispatch<TodolistsActionsType>) => {
-    dispatch(setAppStatusAC('loading'))
-    todolistAPI.createTodolist(title)
-        .then((res) => {
-            if (res.data.resultCode === 0) {
-                dispatch(addTodolistAC(res.data.data.item))
-                dispatch(setAppStatusAC('succeeded'))
+
+export function* removeTodolistWorkerSaga(action: ReturnType<typeof deleteTodolist>) {
+    yield put(setAppStatusAC('loading'))
+    yield put(changeTodolistEntityStatusAC(action.todolistId, 'loading'))
+    try {
+        const res: AxiosResponse<CommonResponseType> = yield call(todolistAPI.deleteTodolist, action.todolistId)
+        if (res.data.resultCode === 0) {
+            yield put(removeTodolistAC(action.todolistId))
+            yield put(setAppStatusAC('succeeded'))
+        } else {
+            if (res.data.messages.length) {
+                yield put(setAppErrorAC(res.data.messages[0]))
             } else {
-                handleAppError(dispatch, res.data)
+                yield put(setAppErrorAC('Some error occurred'))
             }
-        })
-        .catch((error: AxiosError) => {
-            handleNetworkError(dispatch, error.message)
-        })
+            yield put(setAppStatusAC('failed'))
+            yield put(changeTodolistEntityStatusAC(action.todolistId, 'failed'))
+        }
+    } catch (err) {
+        const error = err as Error | AxiosError
+        yield put(setAppErrorAC(error.message))
+        yield put(setAppStatusAC('failed'))
+    }
 }
-export const changeTodoListTitleTC = (todolistId: string, title: string) => (dispatch: Dispatch<TodolistsActionsType>) => {
-    dispatch(setAppStatusAC('loading'))
-    todolistAPI.updateTodolistTitle(todolistId, title)
-        .then((res) => {
-            if (res.data.resultCode === 0) {
-                dispatch(changeTodolistTitleAC(todolistId, title))
-                dispatch(setAppStatusAC('succeeded'))
+
+export function* changeTodoListTitleWorkerSaga(action: ReturnType<typeof renameTodolist>) {
+    yield put(setAppStatusAC('loading'))
+    try {
+        const res: AxiosResponse<CommonResponseType> = yield call(todolistAPI.updateTodolistTitle, action.todolistId, action.title)
+        if (res.data.resultCode === 0) {
+            yield put(changeTodolistTitleAC(action.todolistId, action.title))
+            yield put(setAppStatusAC('succeeded'))
+        } else {
+            if (res.data.messages.length) {
+                yield put(setAppErrorAC(res.data.messages[0]))
             } else {
-                handleAppError(dispatch, res.data)
+                yield put(setAppErrorAC('Some error occurred'))
             }
-        })
-        .catch((error: AxiosError) => {
-            handleNetworkError(dispatch, error.message)
-        })
+            yield put(setAppStatusAC('failed'))
+        }
+    } catch (err) {
+        const error = err as Error | AxiosError
+        yield put(setAppErrorAC(error.message))
+        yield put(setAppStatusAC('failed'))
+    }
 }
+
+export const fetchTodolists = () => ({type: 'TODOLISTS/FETCH-TODOLISTS'} as const)
+export const createTodolist = (title: string) => ({type: 'TODOLISTS/CREATE-TODOLIST', title} as const)
+export const deleteTodolist = (todolistId: string) => ({type: 'TODOLISTS/DELETE-TODOLIST', todolistId} as const)
+export const renameTodolist = (todolistId: string, title: string) => ({
+    type: 'TODOLISTS/RENAME-TODOLIST',
+    todolistId,
+    title
+} as const)
 
 // types
 export type RemoveTodolistActionType = ReturnType<typeof removeTodolistAC>
@@ -111,6 +142,11 @@ type ChangeTodolistFilterActionType = ReturnType<typeof changeTodolistFilterAC>
 export type SetTodolistsActionType = ReturnType<typeof setTodolistsAC>
 type ChangeTodolistEntityStatusActionType = ReturnType<typeof changeTodolistEntityStatusAC>
 export type ClearStateActionType = ReturnType<typeof clearStateAC>
+type FetchTodolistsType = ReturnType<typeof fetchTodolists>
+type CreateTodolistType = ReturnType<typeof createTodolist>
+type DeleteTodolistType = ReturnType<typeof deleteTodolist>
+type RenameTodolistType = ReturnType<typeof renameTodolist>
+
 export type TodolistsActionsType =
     | RemoveTodolistActionType
     | AddTodolistActionType
@@ -120,7 +156,13 @@ export type TodolistsActionsType =
     | AppActionsType
     | ChangeTodolistEntityStatusActionType
     | ClearStateActionType
+    | FetchTodolistsType
+    | CreateTodolistType
+    | DeleteTodolistType
+    | RenameTodolistType
+
 export type FilterValuesType = "all" | "active" | "completed"
+
 export type TodolistDomainType = TodolistType & {
     filter: FilterValuesType
     entityStatus: RequestStatusType
