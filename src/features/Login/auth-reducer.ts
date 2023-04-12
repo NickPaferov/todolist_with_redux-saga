@@ -1,8 +1,9 @@
-import {setAppErrorAC, SetAppErrorActionType, setAppStatusAC, SetAppStatusActionType} from '../../app/app-reducer'
+import {SetAppErrorActionType, setAppStatusAC, SetAppStatusActionType} from '../../app/app-reducer'
 import {authAPI, CommonResponseType, LoginParamsType} from "../../api/todolist-api";
-import {AxiosError, AxiosResponse} from "axios";
+import {AxiosResponse} from "axios";
 import {clearStateAC, ClearStateActionType} from "../TodolistsList/todolists-reducer";
 import {call, put} from 'redux-saga/effects';
+import {handleAppErrorSaga, handleNetworkErrorSaga} from "../../utils/error-utils";
 
 const initialState = {
     isLoggedIn: false
@@ -30,17 +31,10 @@ export function* loginWorkerSaga(action: ReturnType<typeof login>) {
             yield put(setIsLoggedInAC(true))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            if (res.data.messages.length) {
-                yield put(setAppErrorAC(res.data.messages[0]))
-            } else {
-                yield put(setAppErrorAC('Some error occurred'))
-            }
-            yield put(setAppStatusAC('failed'))
+            yield handleAppErrorSaga(res.data)
         }
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 
@@ -53,17 +47,10 @@ export function* logoutWorkerSaga() {
             yield put(clearStateAC())
             yield put(setAppStatusAC('succeeded'))
         } else {
-            if (res.data.messages.length) {
-                yield put(setAppErrorAC(res.data.messages[0]))
-            } else {
-                yield put(setAppErrorAC('Some error occurred'))
-            }
-            yield put(setAppStatusAC('failed'))
+            yield handleAppErrorSaga(res.data)
         }
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 

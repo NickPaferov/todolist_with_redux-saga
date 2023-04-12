@@ -1,7 +1,8 @@
 import {CommonResponseType, todolistAPI, TodolistType} from '../../api/todolist-api';
-import {AppActionsType, RequestStatusType, setAppErrorAC, setAppStatusAC} from "../../app/app-reducer";
-import {AxiosError, AxiosResponse} from "axios";
+import {AppActionsType, RequestStatusType, setAppStatusAC} from "../../app/app-reducer";
+import {AxiosResponse} from "axios";
 import {call, put} from 'redux-saga/effects';
+import {handleAppErrorSaga, handleNetworkErrorSaga} from "../../utils/error-utils";
 
 const initialState: Array<TodolistDomainType> = []
 
@@ -50,10 +51,8 @@ export function* fetchTodolistsWorkerSaga() {
         const res: AxiosResponse<Array<TodolistType>> = yield call(todolistAPI.getTodolists)
         yield put(setTodolistsAC(res.data))
         yield put(setAppStatusAC('succeeded'))
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 
@@ -65,17 +64,10 @@ export function* addTodolistWorkerSaga(action: ReturnType<typeof createTodolist>
             yield put(addTodolistAC(res.data.data.item))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            if (res.data.messages.length) {
-                yield put(setAppErrorAC(res.data.messages[0]))
-            } else {
-                yield put(setAppErrorAC('Some error occurred'))
-            }
-            yield put(setAppStatusAC('failed'))
+            yield handleAppErrorSaga(res.data)
         }
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 
@@ -88,18 +80,11 @@ export function* removeTodolistWorkerSaga(action: ReturnType<typeof deleteTodoli
             yield put(removeTodolistAC(action.todolistId))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            if (res.data.messages.length) {
-                yield put(setAppErrorAC(res.data.messages[0]))
-            } else {
-                yield put(setAppErrorAC('Some error occurred'))
-            }
-            yield put(setAppStatusAC('failed'))
+            yield handleAppErrorSaga(res.data)
             yield put(changeTodolistEntityStatusAC(action.todolistId, 'failed'))
         }
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 
@@ -111,17 +96,10 @@ export function* changeTodoListTitleWorkerSaga(action: ReturnType<typeof renameT
             yield put(changeTodolistTitleAC(action.todolistId, action.title))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            if (res.data.messages.length) {
-                yield put(setAppErrorAC(res.data.messages[0]))
-            } else {
-                yield put(setAppErrorAC('Some error occurred'))
-            }
-            yield put(setAppStatusAC('failed'))
+            yield handleAppErrorSaga(res.data)
         }
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 

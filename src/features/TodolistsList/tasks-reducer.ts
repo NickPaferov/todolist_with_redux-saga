@@ -9,6 +9,7 @@ import {store} from "../../app/store";
 import {AppActionsType, RequestStatusType, setAppErrorAC, setAppStatusAC} from "../../app/app-reducer";
 import {AxiosError, AxiosResponse} from "axios";
 import {call, put} from "redux-saga/effects";
+import {handleAppErrorSaga, handleNetworkErrorSaga} from "../../utils/error-utils";
 
 const initialState: TasksStateType = {}
 
@@ -76,10 +77,8 @@ export function* fetchTasksWorkerSaga(action: ReturnType<typeof fetchTasks>) {
         const tasks = res.data.items
         yield put(setTasksAC(action.todolistId, tasks))
         yield put(setAppStatusAC('succeeded'))
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 
@@ -92,17 +91,10 @@ export function* addTaskWorkerSaga(action: ReturnType<typeof createTask>) {
             yield put(addTaskAC(newTask))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            if (res.data.messages.length) {
-                yield put(setAppErrorAC(res.data.messages[0]))
-            } else {
-                yield put(setAppErrorAC('Some error occurred'))
-            }
-            yield put(setAppStatusAC('failed'))
+            yield handleAppErrorSaga(res.data)
         }
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 
@@ -115,18 +107,11 @@ export function* removeTaskWorkerSaga(action: ReturnType<typeof deleteTask>) {
             yield put(removeTaskAC(action.taskId, action.todolistId))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            if (res.data.messages.length) {
-                yield put(setAppErrorAC(res.data.messages[0]))
-            } else {
-                yield put(setAppErrorAC('Some error occurred'))
-            }
-            yield put(setAppStatusAC('failed'))
+            yield handleAppErrorSaga(res.data)
             yield put(changeTaskEntityStatusAC(action.todolistId, action.taskId, 'failed'))
         }
-    } catch (err) {
-        const error = err as Error | AxiosError
-        yield put(setAppErrorAC(error.message))
-        yield put(setAppStatusAC('failed'))
+    } catch (error) {
+        yield handleNetworkErrorSaga(error)
     }
 }
 
@@ -155,12 +140,7 @@ export function* updateTaskWorkerSaga(action: ReturnType<typeof updateTask>) {
                 yield put(updateTaskAC(action.taskId, action.domainModel, action.todolistId))
                 yield put(setAppStatusAC('succeeded'))
             } else {
-                if (res.data.messages.length) {
-                    yield put(setAppErrorAC(res.data.messages[0]))
-                } else {
-                    yield put(setAppErrorAC('Some error occurred'))
-                }
-                yield put(setAppStatusAC('failed'))
+                yield handleAppErrorSaga(res.data)
             }
         } catch (err) {
             const error = err as Error | AxiosError
