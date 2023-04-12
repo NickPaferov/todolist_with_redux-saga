@@ -6,9 +6,9 @@ import {
 } from "./todolists-reducer";
 import {CommonResponseType, GetTasksResponse, TaskType, todolistAPI, UpdateTaskModelType} from "../../api/todolist-api";
 import {store} from "../../app/store";
-import {AppActionsType, RequestStatusType, setAppErrorAC, setAppStatusAC} from "../../app/app-reducer";
-import {AxiosError, AxiosResponse} from "axios";
-import {call, put} from "redux-saga/effects";
+import {AppActionsType, RequestStatusType, setAppStatusAC} from "../../app/app-reducer";
+import {AxiosResponse} from "axios";
+import {call, put, takeEvery} from "redux-saga/effects";
 import {handleAppErrorSaga, handleNetworkErrorSaga} from "../../utils/error-utils";
 
 const initialState: TasksStateType = {}
@@ -70,7 +70,7 @@ export const changeTaskEntityStatusAC = (todolistId: string, taskId: string, ent
 
 // sagas
 
-export function* fetchTasksWorkerSaga(action: ReturnType<typeof fetchTasks>) {
+export function* fetchTasksWorkerSaga(action: FetchTasksType) {
     yield put(setAppStatusAC('loading'))
     try {
         const res: AxiosResponse<GetTasksResponse> = yield call(todolistAPI.getTasks, action.todolistId)
@@ -78,11 +78,11 @@ export function* fetchTasksWorkerSaga(action: ReturnType<typeof fetchTasks>) {
         yield put(setTasksAC(action.todolistId, tasks))
         yield put(setAppStatusAC('succeeded'))
     } catch (error) {
-        yield handleNetworkErrorSaga(error)
+        yield* handleNetworkErrorSaga(error)
     }
 }
 
-export function* addTaskWorkerSaga(action: ReturnType<typeof createTask>) {
+export function* addTaskWorkerSaga(action: CreateTaskType) {
     yield put(setAppStatusAC('loading'))
     try {
         const res: AxiosResponse<CommonResponseType<{ item: TaskType }>> = yield call(todolistAPI.createTask, action.todolistId, action.taskTitle)
@@ -91,14 +91,14 @@ export function* addTaskWorkerSaga(action: ReturnType<typeof createTask>) {
             yield put(addTaskAC(newTask))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            yield handleAppErrorSaga(res.data)
+            yield* handleAppErrorSaga(res.data)
         }
     } catch (error) {
-        yield handleNetworkErrorSaga(error)
+        yield* handleNetworkErrorSaga(error)
     }
 }
 
-export function* removeTaskWorkerSaga(action: ReturnType<typeof deleteTask>) {
+export function* removeTaskWorkerSaga(action: DeleteTaskType) {
     yield put(setAppStatusAC('loading'))
     yield put(changeTaskEntityStatusAC(action.todolistId, action.taskId, 'loading'))
     try {
@@ -107,15 +107,15 @@ export function* removeTaskWorkerSaga(action: ReturnType<typeof deleteTask>) {
             yield put(removeTaskAC(action.taskId, action.todolistId))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            yield handleAppErrorSaga(res.data)
+            yield* handleAppErrorSaga(res.data)
             yield put(changeTaskEntityStatusAC(action.todolistId, action.taskId, 'failed'))
         }
     } catch (error) {
-        yield handleNetworkErrorSaga(error)
+        yield* handleNetworkErrorSaga(error)
     }
 }
 
-export function* updateTaskWorkerSaga(action: ReturnType<typeof updateTask>) {
+export function* updateTaskWorkerSaga(action: UpdateTaskType) {
     const state = store.getState()
     const allTask = state.tasks
     const tasksForCurrentTodolist = allTask[action.todolistId]
@@ -140,12 +140,10 @@ export function* updateTaskWorkerSaga(action: ReturnType<typeof updateTask>) {
                 yield put(updateTaskAC(action.taskId, action.domainModel, action.todolistId))
                 yield put(setAppStatusAC('succeeded'))
             } else {
-                yield handleAppErrorSaga(res.data)
+                yield* handleAppErrorSaga(res.data)
             }
-        } catch (err) {
-            const error = err as Error | AxiosError
-            yield put(setAppErrorAC(error.message))
-            yield put(setAppStatusAC('failed'))
+        } catch (error) {
+            yield* handleNetworkErrorSaga(error)
         }
     }
 }
@@ -167,6 +165,13 @@ export const updateTask = (todolistId: string, taskId: string, domainModel: Upda
     taskId,
     domainModel
 } as const)
+
+export function* tasksWatcherSaga() {
+    yield takeEvery('TASKS/FETCH-TASKS', fetchTasksWorkerSaga)
+    yield takeEvery('TASKS/CREATE-TASK', addTaskWorkerSaga)
+    yield takeEvery('TASKS/DELETE-TASK', removeTaskWorkerSaga)
+    yield takeEvery('TASKS/UPDATE-TASK', updateTaskWorkerSaga)
+}
 
 // types
 type RemoveTaskActionType = ReturnType<typeof removeTaskAC>

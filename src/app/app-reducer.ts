@@ -1,7 +1,7 @@
 import {authAPI, CommonResponseType} from "../api/todolist-api"
 import {setIsLoggedInAC} from "../features/Login/auth-reducer";
 import {AxiosResponse} from "axios";
-import {call, put} from "redux-saga/effects";
+import {call, put, takeEvery} from "redux-saga/effects";
 import {handleAppErrorSaga, handleNetworkErrorSaga} from "../utils/error-utils";
 
 const initialState = {
@@ -40,16 +40,20 @@ export function* initializeAppWorkerSaga() {
             yield put(setIsLoggedInAC(true))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            yield handleAppErrorSaga(res.data)
+            yield* handleAppErrorSaga(res.data)
         }
     } catch (error) {
-        yield handleNetworkErrorSaga(error)
+        yield* handleNetworkErrorSaga(error)
     } finally {
         yield put(setAppIsInitializedAC(true))
     }
 }
 
 export const initializeApp = () => ({type: 'APP/INITIALIZE-APP'} as const)
+
+export function* appWatcherSaga() {
+    yield takeEvery('APP/INITIALIZE-APP', initializeAppWorkerSaga)
+}
 
 // types
 export type RequestStatusType = 'idle' | 'loading' | 'succeeded' | 'failed'

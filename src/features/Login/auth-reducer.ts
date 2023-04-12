@@ -2,7 +2,7 @@ import {SetAppErrorActionType, setAppStatusAC, SetAppStatusActionType} from '../
 import {authAPI, CommonResponseType, LoginParamsType} from "../../api/todolist-api";
 import {AxiosResponse} from "axios";
 import {clearStateAC, ClearStateActionType} from "../TodolistsList/todolists-reducer";
-import {call, put} from 'redux-saga/effects';
+import {call, put, takeEvery} from 'redux-saga/effects';
 import {handleAppErrorSaga, handleNetworkErrorSaga} from "../../utils/error-utils";
 
 const initialState = {
@@ -23,7 +23,7 @@ export const setIsLoggedInAC = (value: boolean) => ({type: 'login/SET-IS-LOGGED-
 
 // sagas
 
-export function* loginWorkerSaga(action: ReturnType<typeof login>) {
+export function* loginWorkerSaga(action: LoginType) {
     yield put(setAppStatusAC('loading'))
     try {
         const res: AxiosResponse<CommonResponseType> = yield call(authAPI.login, action.data)
@@ -31,10 +31,10 @@ export function* loginWorkerSaga(action: ReturnType<typeof login>) {
             yield put(setIsLoggedInAC(true))
             yield put(setAppStatusAC('succeeded'))
         } else {
-            yield handleAppErrorSaga(res.data)
+            yield* handleAppErrorSaga(res.data)
         }
     } catch (error) {
-        yield handleNetworkErrorSaga(error)
+        yield* handleNetworkErrorSaga(error)
     }
 }
 
@@ -47,15 +47,20 @@ export function* logoutWorkerSaga() {
             yield put(clearStateAC())
             yield put(setAppStatusAC('succeeded'))
         } else {
-            yield handleAppErrorSaga(res.data)
+            yield* handleAppErrorSaga(res.data)
         }
     } catch (error) {
-        yield handleNetworkErrorSaga(error)
+        yield* handleNetworkErrorSaga(error)
     }
 }
 
 export const login = (data: LoginParamsType) => ({type: 'AUTH/LOGIN', data} as const)
 export const logout = () => ({type: 'AUTH/LOGOUT'} as const)
+
+export function* authWatcherSaga() {
+    yield takeEvery('AUTH/LOGIN', loginWorkerSaga)
+    yield takeEvery('AUTH/LOGOUT', logoutWorkerSaga)
+}
 
 // types
 type SetIsLoggedInActionType = ReturnType<typeof setIsLoggedInAC>
