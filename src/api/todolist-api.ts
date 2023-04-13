@@ -56,7 +56,7 @@ export type LoginParamsType = {
     captcha?: string
 }
 
-type MeResponseType = {
+export type MeResponseType = {
     id: number
     email: string
     login: string

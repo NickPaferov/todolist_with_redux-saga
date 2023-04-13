@@ -1,4 +1,4 @@
-import {authAPI, CommonResponseType} from "../api/todolist-api"
+import {authAPI, CommonResponseType, MeResponseType} from "../api/todolist-api"
 import {setIsLoggedInAC} from "../features/Login/auth-reducer";
 import {AxiosResponse} from "axios";
 import {call, put, takeEvery} from "redux-saga/effects";
@@ -35,7 +35,7 @@ export const setAppIsInitializedAC = (isInitialized: boolean) =>
 export function* initializeAppWorkerSaga() {
     yield put(setAppStatusAC('loading'))
     try {
-        const res: AxiosResponse<CommonResponseType> = yield call(authAPI.me)
+        const res: AxiosResponse<CommonResponseType<MeResponseType>> = yield call(authAPI.me)
         if (res.data.resultCode === 0) {
             yield put(setIsLoggedInAC(true))
             yield put(setAppStatusAC('succeeded'))
