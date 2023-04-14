@@ -9,6 +9,7 @@ import {TypedUseSelectorHook, useSelector} from "react-redux";
 import {AppActionsType, appReducer, appWatcherSaga} from "./app-reducer";
 import {AuthActionsType, authReducer, authWatcherSaga} from "../features/Login/auth-reducer";
 import createSagaMiddleware from "redux-saga";
+import {all} from "redux-saga/effects";
 
 // объединяя reducer-ы с помощью combineReducers,
 // мы задаём структуру нашего единственного объекта-состояния
@@ -26,13 +27,10 @@ const sagaMiddleware = createSagaMiddleware()
 export const store = createStore(rootReducer, applyMiddleware(sagaMiddleware))
 
 //запускаем saga
-sagaMiddleware.run(rootWatcher)
+sagaMiddleware.run(rootWatcherSaga)
 
-function* rootWatcher() {
-    yield* appWatcherSaga()
-    yield* authWatcherSaga()
-    yield* todolistsWatcherSaga()
-    yield* tasksWatcherSaga()
+function* rootWatcherSaga() {
+    yield all([appWatcherSaga(), authWatcherSaga(), todolistsWatcherSaga(), tasksWatcherSaga()])
 }
 
 // определить автоматически тип всего объекта состояния
